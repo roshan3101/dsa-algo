@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { useWasm } from '../hooks/useWasm';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Loader2, RotateCcw, Play } from 'lucide-react';
 
 export default function SudokuSolver() {
   const { module, loading, error } = useWasm();
@@ -94,52 +97,133 @@ export default function SudokuSolver() {
     setBoard(Array(81).fill('.'));
   };
 
+  // Helper function to get 3x3 box borders
+  const getBoxBorders = (index: number) => {
+    const row = Math.floor(index / 9);
+    const col = index % 9;
+    
+    const borders = [];
+    // Top border for first row of each 3x3 box (rows 0, 3, 6)
+    if (row % 3 === 0 && row > 0) borders.push('border-t-2 border-t-brand-purple-500/40');
+    // Bottom border for last row of each 3x3 box (rows 2, 5, 8)
+    if (row % 3 === 2 && row < 8) borders.push('border-b-2 border-b-brand-purple-500/40');
+    // Left border for first column of each 3x3 box (cols 0, 3, 6)
+    if (col % 3 === 0 && col > 0) borders.push('border-l-2 border-l-brand-purple-500/40');
+    // Right border for last column of each 3x3 box (cols 2, 5, 8)
+    if (col % 3 === 2 && col < 8) borders.push('border-r-2 border-r-brand-purple-500/40');
+    
+    return borders.join(' ');
+  };
+
   if (loading) {
-    return <div className="p-8">Loading WebAssembly module...</div>;
+    return (
+      <Card className="max-w-2xl">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-purple-500 mb-4" />
+          <p className="text-muted-foreground">Loading WebAssembly module...</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (error) {
-    return <div className="p-8 text-red-500">Error loading WASM: {error.message}</div>;
+    return (
+      <Card className="max-w-2xl border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Error Loading WASM</CardTitle>
+          <CardDescription>{error.message}</CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">Sudoku Solver</h1>
-      
-      <div className="grid grid-cols-9 gap-1 max-w-md mx-auto mb-6 border-2 border-gray-800 p-1 bg-white">
-        {board.map((cell, index) => (
-          <input
-            key={index}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            value={cell === '.' ? '' : cell}
-            onChange={(e) => updateCell(index, e.target.value)}
-            className="w-10 h-10 text-center border border-gray-300 focus:border-blue-500 focus:outline-none text-lg font-semibold text-gray-900"
-            style={{
-              backgroundColor: cell !== '.' ? '#e0f2fe' : 'white',
-              color: '#111827',
-              fontWeight: '600',
-            }}
-          />
-        ))}
-      </div>
+    <Card className="max-w-2xl">
+      <CardHeader className="text-center">
+        <CardTitle className="text-3xl font-bold bg-gradient-to-r from-brand-purple-400 to-brand-purple-300 bg-clip-text text-transparent">
+          Sudoku Solver
+        </CardTitle>
+        <CardDescription>
+          Enter your Sudoku puzzle and let C++ WebAssembly solve it
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Sudoku Grid */}
+        <div className="flex justify-center">
+          <div className="grid grid-cols-9 gap-0 border-2 border-brand-purple-500/30 rounded-lg p-1 bg-card shadow-lg">
+            {board.map((cell, index) => {
+              const isFilled = cell !== '.';
+              const row = Math.floor(index / 9);
+              const col = index % 9;
+              
+              return (
+                <input
+                  key={index}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={cell === '.' ? '' : cell}
+                  onChange={(e) => updateCell(index, e.target.value)}
+                    className={`
+                    w-11 h-11 sm:w-12 sm:h-12
+                    text-center
+                    border border-border
+                    focus:border-brand-purple-500 focus:ring-2 focus:ring-brand-purple-500/20
+                    focus:outline-none
+                    text-lg sm:text-xl font-bold
+                    transition-all duration-200
+                    ${getBoxBorders(index)}
+                    ${isFilled 
+                      ? 'bg-brand-purple-500/10 text-brand-purple-400 dark:text-brand-purple-300' 
+                      : 'bg-background text-foreground'
+                    }
+                    hover:bg-brand-purple-500/5
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                  disabled={solving}
+                />
+              );
+            })}
+          </div>
+        </div>
 
-      <div className="flex gap-4 justify-center">
-        <button
-          onClick={solveSudoku}
-          disabled={!module || solving}
-          className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
-        >
-          {solving ? 'Solving...' : 'Solve'}
-        </button>
-        <button
-          onClick={resetBoard}
-          className="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-        >
-          Reset
-        </button>
-      </div>
-    </div>
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button
+            onClick={solveSudoku}
+            disabled={!module || solving}
+            size="lg"
+            className="bg-brand-purple-500 hover:bg-brand-purple-600 text-white shadow-lg shadow-brand-purple-500/30"
+          >
+            {solving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Solving...
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4" />
+                Solve
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={resetBoard}
+            variant="outline"
+            size="lg"
+            disabled={solving}
+            className="border-brand-purple-500/30 hover:bg-brand-purple-500/10 hover:border-brand-purple-500/50"
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset
+          </Button>
+        </div>
+
+        {/* Info */}
+        <div className="text-center text-sm text-muted-foreground">
+          <p>Powered by C++ compiled to WebAssembly</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
